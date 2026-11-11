@@ -40,8 +40,23 @@ def check_route(routes: list, local_ip: str) -> None:
         raise RuntimeError(f"DDS requires a route through wg0 with source {local_ip}: {routes}")
 
 
+def interface_ipv4(interfaces: list) -> str:
+    addresses = [address["local"]
+                 for interface in interfaces if interface.get("ifname") == "wg0"
+                 for address in interface.get("addr_info", [])
+                 if address.get("family") == "inet"]
+    if len(addresses) != 1:
+        raise RuntimeError(f"Expected one IPv4 address on wg0, found {addresses}; set WG_LOCAL_IP explicitly if needed")
+    return str(ipaddress.IPv4Address(addresses[0]))
+
+
 def main() -> None:
-    local, peer = os.environ["WG_LOCAL_IP"], os.environ["WG_PEER_IP"]
+    peer = os.environ["WG_PEER_IP"]
+    local = os.environ.get("WG_LOCAL_IP", "").strip()
+    if not local:
+        interfaces = json.loads(subprocess.check_output(
+            ["ip", "-j", "-4", "address", "show", "dev", "wg0"], text=True))
+        local = interface_ipv4(interfaces)
     config = make_config(local, peer)
     routes = json.loads(subprocess.check_output(["ip", "-j", "-4", "route", "get", peer], text=True))
     check_route(routes, local)

@@ -13,7 +13,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from configure_dds import check_route, make_config
+from configure_dds import check_route, interface_ipv4, make_config
 from protocol import digest, transfer_id, validate_ack
 from storage import save_image, save_text
 
@@ -79,6 +79,30 @@ class TransferTest(unittest.TestCase):
 
 
 class NetworkTest(unittest.TestCase):
+    def test_local_address_comes_from_selected_tunnel(self):
+        interfaces = [
+            {"ifname": "eth0", "addr_info": [{"family": "inet", "local": "172.18.0.2"}]},
+            {"ifname": "wg0", "addr_info": [
+                {"family": "inet6", "local": "fd00::7"},
+                {"family": "inet", "local": "10.20.30.7"},
+            ]},
+        ]
+        self.assertEqual(interface_ipv4(interfaces), "10.20.30.7")
+
+    def test_missing_tunnel_ipv4_rejected(self):
+        for interfaces in ([],
+                           [{"ifname": "eth0", "addr_info": [{"family": "inet", "local": "172.18.0.2"}]}],
+                           [{"ifname": "wg0", "addr_info": [{"family": "inet6", "local": "fd00::7"}]}]):
+            with self.subTest(interfaces=interfaces), self.assertRaises(RuntimeError):
+                interface_ipv4(interfaces)
+
+    def test_multiple_tunnel_addresses_require_explicit_choice(self):
+        with self.assertRaises(RuntimeError):
+            interface_ipv4([{"ifname": "wg0", "addr_info": [
+                {"family": "inet", "local": "10.10.0.4"},
+                {"family": "inet", "local": "10.20.30.7"},
+            ]}])
+
     def test_route_must_use_wireguard_with_expected_source(self):
         check_route([{"dev": "wg0", "prefsrc": "10.10.0.4"}], "10.10.0.4")
         for routes in ([], [{"dev": "eth0", "prefsrc": "10.10.0.4"}],

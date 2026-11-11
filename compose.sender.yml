@@ -10,7 +10,7 @@ services:
     devices: [/dev/net/tun:/dev/net/tun]
     volumes:
       - type: bind
-        source: ./wg/Client2.conf
+        source: ${WG_SENDER_CONFIG_PATH:-./wg/Client2.conf}
         target: /config/client.conf
         read_only: true
         bind:
@@ -31,8 +31,7 @@ services:
       wireguard:
         condition: service_healthy
     environment:
-      WG_LOCAL_IP: 10.10.0.3
-      WG_PEER_IP: 10.10.0.4
+      WG_PEER_IP: ${WG_LISTENER_IP:-10.10.0.4}
       ROS_DOMAIN_ID: ${WG_TEST_ROS_DOMAIN_ID:-42}
       IMAGE_PATH: /data/resources/Canon80D_8_8_12800_printer_14_real.jpg
       MESSAGE_TEXT: ${WG_TEST_TEXT:-Привет от Client2 через WireGuard!}

@@ -10,7 +10,7 @@ services:
     devices: [/dev/net/tun:/dev/net/tun]
     volumes:
       - type: bind
-        source: ./wg/Client1.conf
+        source: ${WG_LISTENER_CONFIG_PATH:-./wg/Client1.conf}
         target: /config/client.conf
         read_only: true
         bind:
@@ -31,8 +31,7 @@ services:
       wireguard:
         condition: service_healthy
     environment:
-      WG_LOCAL_IP: 10.10.0.4
-      WG_PEER_IP: 10.10.0.3
+      WG_PEER_IP: ${WG_SENDER_IP:-10.10.0.3}
       ROS_DOMAIN_ID: ${WG_TEST_ROS_DOMAIN_ID:-42}
       OUTPUT_DIR: /data/received
     volumes:
