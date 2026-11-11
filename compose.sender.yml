@@ -1,0 +1,53 @@
+name: wg-ros-sender
+
+services:
+  wireguard:
+    image: wg-ros-tunnel:local
+    build:
+      context: .
+      dockerfile: docker/wireguard/Dockerfile
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun:/dev/net/tun]
+    volumes:
+      - type: bind
+        source: ./wg/Client2.conf
+        target: /config/client.conf
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD-SHELL, "ip -4 address show dev wg0 | grep -q 'inet ' && wg show wg0 >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  sender:
+    image: wg-ros-transfer:local
+    build: .
+    network_mode: service:wireguard
+    depends_on:
+      wireguard:
+        condition: service_healthy
+    environment:
+      WG_LOCAL_IP: 10.10.0.3
+      WG_PEER_IP: 10.10.0.4
+      ROS_DOMAIN_ID: ${WG_TEST_ROS_DOMAIN_ID:-42}
+      IMAGE_PATH: /data/resources/Canon80D_8_8_12800_printer_14_real.jpg
+      MESSAGE_TEXT: ${WG_TEST_TEXT:-Привет от Client2 через WireGuard!}
+      SEND_COUNT: ${WG_TEST_COUNT:-5}
+      SEND_INTERVAL: ${WG_TEST_INTERVAL:-1}
+      ACK_TIMEOUT: ${WG_TEST_ACK_TIMEOUT:-15}
+      DISCOVERY_TIMEOUT: ${WG_TEST_DISCOVERY_TIMEOUT:-60}
+      SEND_RETRIES: ${WG_TEST_RETRIES:-3}
+    volumes:
+      - type: bind
+        source: ./resources
+        target: /data/resources
+        read_only: true
+        bind:
+          create_host_path: false
+    command: [sender.py]
+    init: true
+    restart: "no"

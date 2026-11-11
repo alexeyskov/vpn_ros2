@@ -1,0 +1,13 @@
+*.ovpn
+*.key
+*.pem
+.env
+frames/
+diagnostics/
+__pycache__/
+*.pyc
+wg/*.conf
+.env.wg
+received/
+.pytest_cache/
+.DS_Store
